@@ -99,6 +99,10 @@ class DPTDepthModel(DPT):
         )
 
         super().__init__(head, **kwargs)
+        with torch.no_grad():
+            self.scratch.output_conv[4].bias.fill_(0.1)
+            self.scratch.output_conv[4].weight.div_(100.)
+
 
         if path is not None:
            self.load(path)

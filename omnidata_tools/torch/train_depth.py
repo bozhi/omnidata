@@ -1,33 +1,36 @@
-import os
-import argparse
-import numpy as np
-from PIL import Image
-import random
-import yaml
-import pickle
-from collections import defaultdict
-import torch.nn as nn
-import torch.nn.functional as F
-from torch.utils.data import DataLoader, ConcatDataset
-from torch.utils.data.sampler import WeightedRandomSampler
-from torchvision import transforms
-import pytorch_lightning as pl
-from pytorch_lightning import Trainer
-from pytorch_lightning.callbacks import ModelCheckpoint
-from einops import rearrange
-import einops as ein
-import torch 
-from PIL import Image
-import matplotlib.pyplot as plt
-from matplotlib import cm
-from mpl_toolkits.axes_grid1 import make_axes_locatable
+import warnings
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore",category=DeprecationWarning)
+    import os
+    import argparse
+    import numpy as np
+    from PIL import Image
+    import random
+    import yaml
+    import pickle
+    from collections import defaultdict
+    import torch.nn as nn
+    import torch.nn.functional as F
+    from torch.utils.data import DataLoader, ConcatDataset
+    from torch.utils.data.sampler import WeightedRandomSampler
+    from torchvision import transforms
+    import pytorch_lightning as pl
+    from pytorch_lightning import Trainer
+    from pytorch_lightning.callbacks import ModelCheckpoint
+    from einops import rearrange
+    import einops as ein
+    import torch
+    from PIL import Image
+    import matplotlib.pyplot as plt
+    from matplotlib import cm
+    from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-from data.omnidata_dataset import OmnidataDataset, REPLICA_BUILDINGS
-from data.augmentation import Augmentation
-from modules.unet import UNet
-from modules.midas.midas_net import MidasNet
-from modules.midas.dpt_depth import DPTDepthModel
-from losses import masked_l1_loss, virtual_normal_loss, midas_loss
+    from data.omnidata_dataset import OmnidataDataset, REPLICA_BUILDINGS
+    from data.augmentation import Augmentation
+    from modules.unet import UNet
+    from modules.midas.midas_net import MidasNet
+    from modules.midas.dpt_depth import DPTDepthModel
+    from losses import masked_l1_loss, virtual_normal_loss, midas_loss
 
 def building_in_gso(building):
     return building.__contains__('-') and building.split('-')[0] in REPLICA_BUILDINGS
@@ -104,7 +107,7 @@ class Depth(pl.LightningModule):
 
     def setup_datasets(self):
 
-        self.tasks = ['rgb', 'depth_zbuffer', 'depth_euclidean', 'mask_valid']      
+        self.tasks = ['rgb', 'depth_zbuffer', 'depth_euclidean', 'mask_valid']
 
         self.train_options = {}
         self.trainsets = {}
@@ -119,7 +122,7 @@ class Depth(pl.LightningModule):
                 normalize_rgb=self.normalize_rgb,
                 normalization_mean=self.normalization_mean,
                 normalization_std=self.normalization_std,
-            )   
+            )
             self.trainsets[dataset] = OmnidataDataset(options=self.train_options[dataset])
             print(f'Train set ({dataset}) contains {len(self.trainsets[dataset])} samples.')
 
@@ -157,11 +160,11 @@ class Depth(pl.LightningModule):
         for w, count in zip(weights, dataset_sample_count):
             samples_weight += [w] * count
         samples_weight = torch.tensor(samples_weight)
-        
+
         sampler = WeightedRandomSampler(samples_weight, len(samples_weight))
         train_dataset = ConcatDataset(trainsets)
         return DataLoader(
-            train_dataset, batch_size=self.batch_size, sampler=sampler, 
+            train_dataset, batch_size=self.batch_size, sampler=sampler,
             num_workers=self.num_workers, pin_memory=False
         )
 
@@ -169,16 +172,16 @@ class Depth(pl.LightningModule):
         val_dls = []
         for valset in self.valsets.values():
             dl = DataLoader(
-                    valset, batch_size=self.batch_size, shuffle=False, 
+                    valset, batch_size=self.batch_size, shuffle=False,
                     num_workers=self.num_workers, pin_memory=False
                 )
 
-            val_dls.append(dl)    
-        return val_dls   
+            val_dls.append(dl)
+        return val_dls
 
 
     def forward(self, x):
-        return self.model(x).unsqueeze(1) 
+        return self.model(x).unsqueeze(1)
 
     def training_step(self, batch, batch_idx):
         res = self.shared_step(batch, train=True)
@@ -188,22 +191,22 @@ class Depth(pl.LightningModule):
         self.log('train_vn_loss', res['vn_loss'], prog_bar=True, logger=True, sync_dist=len(self.gpus)>1)
         self.log('train_depth_loss', res['depth_loss'], prog_bar=True, logger=True, sync_dist=len(self.gpus)>1)
         return {'loss': res['depth_loss']}
-    
-    def validation_step(self, batch, batch_idx, dataset_idx):
+
+    def validation_step(self, batch, batch_idx, dataloader_idx=0):
         res = self.shared_step(batch, train=False)
-        dataset = self.val_datasets[dataset_idx]
+        dataset = self.val_datasets[dataloader_idx]
         res['dataset'] = dataset
         return res
-    
+
     def register_save_on_error_callback(self, callback):
         '''
-            On error, will call the following callback. 
+            On error, will call the following callback.
             Callback should have signature:
                 callback(batch) -> none
         '''
         self.on_error_callback = callback
         self.save_debug_info_on_error = True
-        
+
     def shared_step(self, batch, train=True):
         try:
             return self._shared_step(batch, train)
@@ -241,9 +244,9 @@ class Depth(pl.LightningModule):
 
         return mask_valid
 
-    
+
     def _shared_step(self, batch, train=True):
-        
+
         if train:
             # resize augmentation
             batch['positive'] = self.aug.resize_augmentation(batch['positive'], self.tasks, fixed_size=384)
@@ -291,14 +294,18 @@ class Depth(pl.LightningModule):
         loss_counts = 0
         loss = 0
         for dataloader_outputs in outputs:
-            for output in dataloader_outputs:
+            if isinstance(dataloader_outputs, list):
+                for output in dataloader_outputs:
+                    loss_counts += 1
+                    loss += output['depth_loss']
+            else:
                 loss_counts += 1
-                loss += output['depth_loss']
- 
+                loss += dataloader_outputs['depth_loss']
+
         loss /= loss_counts
         self.log(f'val_depth_loss', loss, prog_bar=False, logger=True, sync_dist=len(self.gpus)>1)
-       
-        # Log validation set images 
+
+        # Log validation set images
         if self.global_step >= self.last_log_step + self.log_step or self.global_step<1000:
             self.last_log_step = self.global_step
             self.log_validation_example_images()
@@ -312,8 +319,8 @@ class Depth(pl.LightningModule):
                 val_imgs[dataset].append(idx)
 
         return val_imgs
-    
-    def depth_to_rgb(self, img):   
+
+    def depth_to_rgb(self, img):
         img = (img - np.min(img)) / np.ptp(img)
         cm = plt.get_cmap('inferno', 2**16)
         # pixel_colored = np.uint8(np.rint(cm(1-img) * 255))[:, :, :3]
@@ -354,7 +361,7 @@ class Depth(pl.LightningModule):
                 depth_gt_pos = depth_gt_pos.unsqueeze(axis=0)
 
                 with torch.no_grad():
-                    depth_preds_pos = self.model.forward(rgb_pos).unsqueeze(1) 
+                    depth_preds_pos = self.model.forward(rgb_pos).unsqueeze(1)
                     depth_preds_pos = torch.clamp(depth_preds_pos, 0, 1)
                     depth_preds_pos[~mask_valid.unsqueeze(0)] = 0
 
@@ -375,9 +382,9 @@ class Depth(pl.LightningModule):
                 depth_pred[~mask] = 0
                 depth_pred_im = Image.fromarray(depth_pred.squeeze())
                 depth_pred_im.save(os.path.join(save_path, f'{img_idx}-pred-depthzbuffer.png'))
-                
 
-    
+
+
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
         return optimizer
@@ -390,7 +397,7 @@ def save_model_and_batch_on_error(checkpoint_function, save_path_prefix='.'):
         print(f"Saving crash information to {save_path_prefix}")
         with open(os.path.join(save_path_prefix, "crash_batch.pth"), 'wb') as f:
             torch.save(batch, f)
-        
+
     return _save
 
 
@@ -398,6 +405,8 @@ def save_model_and_batch_on_error(checkpoint_function, save_path_prefix='.'):
 
 
 if __name__ == '__main__':
+    warnings.simplefilter('ignore')
+    warnings.filterwarnings("ignore", category=DeprecationWarning)
     # Experimental setup
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -414,16 +423,19 @@ if __name__ == '__main__':
     model = Depth(args.config_file, args.experiment_name)
 
 
-    # Save best and last model 
+    # Save best and last model
     checkpoint_dir = os.path.join(model.save_dir, 'checkpoints', f'{args.experiment_name}')
     checkpoint_callback = ModelCheckpoint(
-        filepath=os.path.join(checkpoint_dir, '{epoch}'),
-        verbose=True, monitor='val_depth_loss', mode='min', period=1, save_last=True, save_top_k=model.save_top_k
+        dirpath=checkpoint_dir,
+        filename='{epoch}',
+        verbose=True, monitor='val_depth_loss', mode='min',
+        every_n_epochs=1,
+        save_last=True, save_top_k=model.save_top_k
     )
 
-    trainer = Trainer.from_argparse_args(args, checkpoint_callback=checkpoint_callback,  \
+    trainer = Trainer.from_argparse_args(args, callbacks=checkpoint_callback,  \
                                         gpus=model.gpus, auto_lr_find=False, gradient_clip_val=10,\
-                                        accelerator='ddp', replace_sampler_ddp=False)
+                                        accelerator='cuda', replace_sampler_ddp=False)
 
 
     model.register_save_on_error_callback(
