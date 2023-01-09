@@ -9,10 +9,10 @@ import torch.utils.data as data
 from   typing import Optional, List, Callable, Union, Dict, Any, Tuple
 import warnings
 
-from .masks import make_mask_from_data, DEFAULT_MASK_EXTRA_RADIUS
-from .splits import taskonomy_flat_split_to_buildings
-from .transforms import default_loader, get_transform
-from .task_configs import task_parameters, SINGLE_IMAGE_TASKS #, *
+from omnidata_tools.torch.data.masks import make_mask_from_data, DEFAULT_MASK_EXTRA_RADIUS
+from omnidata_tools.torch.data.splits import taskonomy_flat_split_to_buildings
+from omnidata_tools.torch.data.transforms import default_loader, get_transform
+from omnidata_tools.torch.data.task_configs import task_parameters, SINGLE_IMAGE_TASKS #, *
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True # TODO Test this
 

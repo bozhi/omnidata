@@ -44,7 +44,7 @@ def get_splits(split_path):
 # Taskonomy
 subsets = ['debug', 'tiny', 'medium', 'full', 'fullplus']
 taskonomy_split_files = {s:  os.path.join(os.path.dirname(__file__),
-                                'splits',
+                                'data_splits',
                                 'train_val_test_{}.csv'.format(s.lower()))
                for s in subsets}
 
@@ -57,18 +57,18 @@ for subset in taskonomy_split_to_buildings:
 
 
 # Replica
-replica_split_file = os.path.join(os.path.dirname(__file__), 'splits', 'train_val_test_replica.csv')
+replica_split_file = os.path.join(os.path.dirname(__file__), 'data_splits', 'train_val_test_replica.csv')
 replica_flat_split_to_buildings = get_splits(replica_split_file)
 
 # GSO
-gso_split_file = os.path.join(os.path.dirname(__file__), 'splits', 'train_val_test_gso.csv')
+gso_split_file = os.path.join(os.path.dirname(__file__), 'data_splits', 'train_val_test_gso.csv')
 gso_flat_split_to_buildings = get_splits(gso_split_file)
 
 # hypersim
-hypersim_split_file = os.path.join(os.path.dirname(__file__), 'splits', 'train_val_test_hypersim.csv')
+hypersim_split_file = os.path.join(os.path.dirname(__file__), 'data_splits', 'train_val_test_hypersim.csv')
 hypersim_flat_split_to_buildings = get_splits(hypersim_split_file)
 
 # blendedMVS
-blendedMVS_split_file = os.path.join(os.path.dirname(__file__), 'splits', 'train_val_test_blendedMVS.csv')
+blendedMVS_split_file = os.path.join(os.path.dirname(__file__), 'data_splits', 'train_val_test_blendedMVS.csv')
 blendedMVS_flat_split_to_buildings = get_splits(blendedMVS_split_file)
 

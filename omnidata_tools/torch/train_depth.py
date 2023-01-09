@@ -25,12 +25,12 @@ with warnings.catch_warnings():
     from matplotlib import cm
     from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-    from data.omnidata_dataset import OmnidataDataset, REPLICA_BUILDINGS
-    from data.augmentation import Augmentation
-    from modules.unet import UNet
-    from modules.midas.midas_net import MidasNet
-    from modules.midas.dpt_depth import DPTDepthModel
-    from losses import masked_l1_loss, virtual_normal_loss, midas_loss
+    from omnidata_tools.torch.data.omnidata_dataset import OmnidataDataset, REPLICA_BUILDINGS
+    from omnidata_tools.torch.data.augmentation import Augmentation
+    from omnidata_tools.torch.modules.unet import UNet
+    from omnidata_tools.torch.modules.midas.midas_net import MidasNet
+    from omnidata_tools.torch.modules.midas.dpt_depth import DPTDepthModel
+    from omnidata_tools.torch.losses import masked_l1_loss, virtual_normal_loss, midas_loss
 
 def building_in_gso(building):
     return building.__contains__('-') and building.split('-')[0] in REPLICA_BUILDINGS
