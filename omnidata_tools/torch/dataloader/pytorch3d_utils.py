@@ -145,7 +145,7 @@ class GenericPinholeCamera(CamerasBase):
         camera_rays               = self.camera_rays(height, width, world_coordinates=False, device=device).reshape(batch_size, -1, 3)
         camera_rays               = camera_rays * depth_euclidean.reshape(batch_size, -1, 1)
         if not world_coordinates: return camera_rays.reshape((batch_size, height, width, 3))
-        world_to_view_transform = self.get_world_to_view_transform()
+        world_to_view_transform = self.get_world_to_view_transform().to(device)
         return world_to_view_transform.inverse().transform_points(camera_rays).reshape((batch_size, height, width, 3))
   
 #     def unproject_metric_depth_euclidean(self,
