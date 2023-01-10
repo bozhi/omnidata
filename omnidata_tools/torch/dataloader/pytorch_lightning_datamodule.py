@@ -9,6 +9,8 @@ from torch.utils.data.sampler import BatchSampler, RandomSampler, SequentialSamp
 from typing import Optional, Dict
 import logging, loguru
 
+import torch
+
 class OmnidataDataModule(LightningDataModule):
     def __init__(self,
                  tasks = ('rgb', 'normal', 'mask_valid'),
@@ -47,7 +49,7 @@ class OmnidataDataModule(LightningDataModule):
             self.trainsets[dataset_name] =  eval(dataset_name)(eval(dataset_name).Options(**opts_dict))
             self.logger.info(f'Train set ({dataset_name}) contains {len(self.trainsets[dataset_name])} samples.')
         self.logger.success('Finished loading training sets.')
-        
+
         # Sompe options are unique to the val set
         self.val_dataset_names, self.valsets = [], []
         for dataset_name, dataset_opts in self.eval_datasets_to_options.items():
@@ -75,7 +77,7 @@ class OmnidataDataModule(LightningDataModule):
         for w, count in zip(weights, dataset_sample_count):
             samples_weight += [w] * count
         samples_weight = torch.tensor(samples_weight)
-        
+
         sampler = WeightedRandomSampler(samples_weight, len(samples_weight))
         train_dataset = ConcatDataset(trainsets)
         return DataLoader(
