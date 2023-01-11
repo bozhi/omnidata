@@ -83,7 +83,6 @@ class OmnidataDataModule(LightningDataModule):
         return DataLoader(
             train_dataset,
             sampler=sampler,
-            shuffle=True,
             drop_last=self.drop_last,
             **self.dataloader_kwargs
         )
